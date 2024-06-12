@@ -30,15 +30,9 @@ pub struct Response {
 
 impl Response {
     pub fn builder(status: Status, body: String, headers: HashMap<String, String>) -> Response {
-        let mut additional_headers: HashMap<String, String> = HashMap::new();
-        if !body.is_empty() {
-            additional_headers.insert("Content-Type".to_string(), "text/plain".to_string());
-            additional_headers.insert("Content-Length".to_string(), body.len().to_string());
-        }
-        additional_headers.extend(headers);
         Response {
             status,
-            headers: additional_headers,
+            headers: headers,
             version: "HTTP/1.1".to_string(),
             body: body.into_bytes(),
         }
