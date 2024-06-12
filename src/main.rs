@@ -70,7 +70,7 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Ok(_stream) => {
-                request_handler(_stream);
+                std::thread::spawn(||request_handler(_stream));
             }
             Err(e) => {
                 println!("error: {}", e);
