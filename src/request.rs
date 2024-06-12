@@ -1,7 +1,7 @@
 use std::{
-    io::{BufRead, BufReader, ErrorKind, Error},
-    net::TcpStream,
     collections::HashMap,
+    io::{BufRead, BufReader, Error, ErrorKind},
+    net::TcpStream,
 };
 
 pub enum RequestMethod {
@@ -41,7 +41,12 @@ impl Request {
         if parts.len() == 3 {
             let [method, target, version] = match parts.as_slice() {
                 [method, target, version] => [method, target, version],
-                _ => return Err(Error::new(ErrorKind::InvalidData, "Invalid request.".to_string())),
+                _ => {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Invalid request.".to_string(),
+                    ))
+                }
             };
 
             let mut request = Request {
@@ -53,7 +58,10 @@ impl Request {
             };
             Ok(request)
         } else {
-            Err(Error::new(ErrorKind::InvalidData, "Invalid request.".to_string()))
+            Err(Error::new(
+                ErrorKind::InvalidData,
+                "Invalid request.".to_string(),
+            ))
         }
     }
 

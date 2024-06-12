@@ -1,9 +1,9 @@
-use std::sync::{Arc, RwLock};
-use std::net::TcpStream;
-use std::collections::HashMap;
-use crate::router::Router;
 use crate::request::Request;
 use crate::response::{Response, Status, StatusCode};
+use crate::router::Router;
+use std::collections::HashMap;
+use std::net::TcpStream;
+use std::sync::{Arc, RwLock};
 
 pub type RequestHandler = Arc<dyn Fn(Request) -> Result<Response, Response> + Send + Sync>;
 

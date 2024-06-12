@@ -1,17 +1,15 @@
-use std::{
-    io::{Write},
-    net::{TcpListener, TcpStream},
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
 use crate::request::Request;
 use crate::response::{Response, Status, StatusCode};
 use crate::server::RequestHandler;
-
-pub type BodyParser = fn(&Request) -> Option<String>;
+use std::{
+    collections::HashMap,
+    io::Write,
+    net::{TcpListener, TcpStream},
+    sync::{Arc, RwLock},
+};
 
 pub struct Router {
-    routes: HashMap<String, (RequestHandler, BodyParser)>,
+    routes: HashMap<String, RequestHandler>,
 }
 
 impl Router {
@@ -21,17 +19,15 @@ impl Router {
         }
     }
 
-    pub fn add_route<F>(&mut self, path: &str, handler: F, parser: BodyParser)
+    pub fn add_route<F>(&mut self, path: &str, handler: F)
     where
         F: Fn(Request) -> Result<Response, Response> + Send + Sync + 'static,
     {
-        self.routes.insert(path.to_string(), (Arc::new(handler), parser));
+        self.routes.insert(path.to_string(), Arc::new(handler));
     }
 
     pub fn route(&self, req: Request) -> Result<Response, Response> {
-        if let Some((handler, parser)) = self.routes.get(req.target.as_str()) {
-            let mut req = req;
-            req.body = parser(&req);
+        if let Some(handler) = self.contains_prefix(req.target.as_str()) {
             handler(req)
         } else {
             Err(Response::builder(
@@ -47,6 +43,16 @@ impl Router {
 
     pub fn get_prefixes(&self) -> Vec<String> {
         self.routes.keys().cloned().collect()
+    }
+
+    pub fn contains_prefix(&self, prefix: &str) -> Option<&RequestHandler> {
+        self.routes.iter().find_map(|(key, handler)| {
+            if prefix.starts_with(key) {
+                Some(handler)
+            } else {
+                None
+            }
+        })
     }
 
     fn find_prefix<'a>(target: &'a str, prefixes: &'a [String]) -> Option<&'a str> {
