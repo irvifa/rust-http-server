@@ -19,41 +19,6 @@ pub struct Request {
 }
 
 impl Request {
-    fn get_prefixes() -> Vec<String> {
-        vec!["/echo".to_string(), "/user-agent".to_string()]
-    }
-
-    fn find_prefix<'a>(target: &'a str, prefixes: &'a [String]) -> Option<&'a str> {
-        prefixes
-            .iter()
-            .find(|&&ref prefix| target.starts_with(prefix))
-            .map(|prefix| prefix.as_str())
-    }
-
-    fn parse_target(path: String) -> String {
-        let prefixes = Self::get_prefixes();
-        match Self::find_prefix(&path, &prefixes) {
-            Some(prefix) => prefix.to_string(),
-            None => path,
-        }
-    }
-
-    fn parse_body(request: &Request) -> Option<String> {
-        let prefixes = Self::get_prefixes();
-        let path = Self::parse_target(request.target.to_string());
-        match Self::find_prefix(&path, &prefixes) {
-            Some(prefix) => match prefix {
-                "/echo" => {
-                    let body = request.target.strip_prefix(prefix).and_then(|stripped| stripped.strip_prefix('/')).map(|stripped| stripped.to_string());
-                    body.clone()
-                },
-                "/user-agent" => request.headers.get("User-Agent").cloned(),
-                _ => None,
-            },
-            None => None,
-        }
-    }
-
     pub fn builder(stream: &TcpStream) -> Result<Request, Error> {
         let mut buf_reader = BufReader::new(stream.try_clone().unwrap());
         let mut request_str = String::new();
@@ -86,8 +51,6 @@ impl Request {
                 body: None,
                 headers,
             };
-            request.body = Self::parse_body(&request);
-            request.target = Self::parse_target(target.to_string());
             Ok(request)
         } else {
             Err(Error::new(ErrorKind::InvalidData, "Invalid request.".to_string()))
