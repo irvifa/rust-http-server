@@ -1,7 +1,7 @@
-// Uncomment this block to pass the first stage
 use std::{
     io::{Write},
     net::{TcpListener, TcpStream},
+    collections::{HashMap},
 };
 
 use request::{RequestMethod, Request};
@@ -17,32 +17,47 @@ fn request_handler(mut stream: TcpStream) {
             let response = Response::builder(
                 Status {
                     code: StatusCode::Ok,
-                    message: "OK".to_string().into_bytes(),
+                    message: "OK".to_string(),
                 },
                 "".to_string(),
+                HashMap::new(),
             );
-            stream.write_all(&response.to_bytes()).unwrap();
+            response.send(&mut stream).unwrap();
         }
         "/echo" => {
-            let body = req.body.unwrap();
+            let body = req.body.clone().unwrap();
             let response = Response::builder(
                 Status {
                     code: StatusCode::Ok,
-                    message: "OK".to_string().into_bytes(),
+                    message: "OK".to_string(),
                 },
                 body,
+                req.headers,
             );
-            stream.write_all(&response.to_bytes()).unwrap();
+            response.send(&mut stream).unwrap();
+        }
+        "/user-agent" => {
+            let body = req.headers.get("User-Agent").cloned().unwrap_or_else(|| "No User-Agent found".to_string());
+            let response = Response::builder(
+                Status {
+                    code: StatusCode::Ok,
+                    message: "OK".to_string(),
+                },
+                body,
+                req.headers,
+            );
+            response.send(&mut stream).unwrap();
         }
         _ => {
             let response = Response::builder(
                 Status {
                     code: StatusCode::NotFound,
-                    message: "Not Found".to_string().into_bytes(),
+                    message: "Not Found".to_string(),
                 },
                 "".to_string(),
+                HashMap::new(),
             );
-            stream.write_all(&response.to_bytes()).unwrap();
+            response.send(&mut stream).unwrap();
         }
     }
 }

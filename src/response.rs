@@ -1,7 +1,6 @@
-use std::{
-    io::{Write},
-    net::{TcpListener, TcpStream},
-};
+use std::collections::HashMap;
+use std::io::Write;
+use std::net::TcpStream;
 
 pub enum StatusCode {
     Ok = 200,
@@ -19,26 +18,27 @@ impl StatusCode {
 
 pub struct Status {
     pub code: StatusCode,
-    pub message: Vec<u8>
+    pub message: String,
 }
 
 pub struct Response {
     pub version: String,
     pub status: Status,
-    pub headers: Vec<(String, String)>,
+    pub headers: HashMap<String, String>,
     pub body: Vec<u8>,
 }
 
 impl Response {
-    pub fn builder(status: Status, body: String) -> Response {
-        let mut headers: Vec<(String, String)> = Vec::new();
+    pub fn builder(status: Status, body: String, headers: HashMap<String, String>) -> Response {
+        let mut additional_headers: HashMap<String, String> = HashMap::new();
         if !body.is_empty() {
-            headers.push(("Content-Type".to_string(), "text/plain".to_string()));
-            headers.push(("Content-Length".to_string(), body.len().to_string()));
+            additional_headers.insert("Content-Type".to_string(), "text/plain".to_string());
+            additional_headers.insert("Content-Length".to_string(), body.len().to_string());
         }
+        additional_headers.extend(headers);
         Response {
             status,
-            headers,
+            headers: additional_headers,
             version: "HTTP/1.1".to_string(),
             body: body.into_bytes(),
         }
@@ -51,8 +51,9 @@ impl Response {
             "{} {} {}\r\n",
             self.version,
             self.status.code.to_u16(),
-            String::from_utf8_lossy(&self.status.message)
-        ).unwrap();
+            self.status.message
+        )
+        .unwrap();
 
         // Write each header
         for (key, value) in &self.headers {
@@ -66,5 +67,11 @@ impl Response {
         buffer.extend_from_slice(&self.body);
 
         buffer
+    }
+
+    pub fn send(&self, stream: &mut TcpStream) -> std::io::Result<()> {
+        stream.write_all(&self.to_bytes())?;
+        stream.flush()?;
+        Ok(())
     }
 }
