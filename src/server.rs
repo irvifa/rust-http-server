@@ -1,29 +1,22 @@
-use std::{
-    io::{Read, Write},
-    net::{TcpListener, TcpStream},
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
+use std::net::TcpStream;
+use std::collections::HashMap;
+use crate::router::Router;
+use crate::request::Request;
+use crate::response::{Response, Status, StatusCode};
 
-use request::{Request, RequestMethod};
-mod request;
+pub type RequestHandler = Arc<dyn Fn(Request) -> Result<Response, Response> + Send + Sync>;
 
-use response::{Response, Status, StatusCode};
-mod response;
-
-use router::Router;
-mod router;
-
-struct HttpServer {
+pub struct HttpServer {
     router: Arc<RwLock<Router>>,
 }
 
 impl HttpServer {
-    fn new(router: Arc<RwLock<Router>>) -> Self {
+    pub fn new(router: Arc<RwLock<Router>>) -> Self {
         HttpServer { router }
     }
 
-    fn handle_client(&self, mut stream: TcpStream) {
+    pub fn handle_client(&self, mut stream: TcpStream) {
         let req = match Request::builder(&stream) {
             Ok(req) => req,
             Err(_) => {
@@ -39,7 +32,12 @@ impl HttpServer {
                 return;
             }
         };
-        let response = self.router.read().unwrap().route(req);
+
+        let response = match self.router.read().unwrap().route(req) {
+            Ok(response) => response,
+            Err(response) => response,
+        };
+
         response.send(&mut stream).unwrap();
     }
 }

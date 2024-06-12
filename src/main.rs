@@ -1,7 +1,8 @@
 use std::{
     io::{Write},
     net::{TcpListener, TcpStream},
-    collections::{HashMap},
+    collections::HashMap,
+    sync::{Arc, RwLock},
 };
 
 use request::{RequestMethod, Request};
@@ -10,24 +11,11 @@ mod request;
 use response::{Response, Status, StatusCode};
 mod response;
 
-fn get_prefixes() -> Vec<String> {
-    vec!["/echo".to_string(), "/user-agent".to_string()]
-}
+use router::Router;
+mod router;
 
-fn find_prefix<'a>(target: &'a str, prefixes: &'a [String]) -> Option<&'a str> {
-    prefixes
-        .iter()
-        .find(|&&ref prefix| target.starts_with(prefix))
-        .map(|prefix| prefix.as_str())
-}
-
-fn parse_target(path: String) -> String {
-    let prefixes = get_prefixes();
-    match find_prefix(&path, &prefixes) {
-        Some(prefix) => prefix.to_string(),
-        None => path,
-    }
-}
+use server::{HttpServer, RequestHandler};
+mod server;
 
 fn root_handler(_req: Request) -> Result<Response, Response> {
     Ok(Response::builder(
@@ -40,9 +28,12 @@ fn root_handler(_req: Request) -> Result<Response, Response> {
     ))
 }
 
-fn echo_handler(mut req: Request) -> Result<Response, Response> {
-    req.body = parse_body(&req);
-    req.target = parse_target(req.target.to_string());
+fn echo_handler(router: Arc<RwLock<Router>>, req: Request) -> Result<Response, Response> {
+    let mut req = req;
+    let router = router.read().unwrap();
+    req.body = router.parse_body(&req);
+    req.target = router.parse_target(req.target.to_string());
+    println!("{}", req.body.clone().unwrap());
     Ok(Response::builder(
         Status {
             code: StatusCode::Ok,
@@ -53,10 +44,11 @@ fn echo_handler(mut req: Request) -> Result<Response, Response> {
     ))
 }
 
-
-fn user_agent_handler(mut req: Request) -> Result<Response, Response> {
-    req.body = parse_body(&req);
-    req.target = parse_target(req.target.to_string());
+fn user_agent_handler(router: Arc<RwLock<Router>>, req: Request) -> Result<Response, Response> {
+    let mut req = req;
+    let router = router.read().unwrap();
+    req.body = router.parse_body(&req);
+    req.target = router.parse_target(req.target.to_string());
     Ok(Response::builder(
         Status {
             code: StatusCode::Ok,
@@ -65,88 +57,43 @@ fn user_agent_handler(mut req: Request) -> Result<Response, Response> {
         req.body.unwrap(),
         req.headers,
     ))
-}
-
-fn parse_body(req: &Request) -> Option<String> {
-    let prefixes = get_prefixes();
-    let path = parse_target(req.target.to_string());
-    match find_prefix(&path, &prefixes) {
-        Some(prefix) => match prefix {
-            "/echo" => {
-                let body = req.target.strip_prefix(prefix).and_then(|stripped| stripped.strip_prefix('/')).map(|stripped| stripped.to_string());
-                body.clone()
-            },
-            "/user-agent" => req.headers.get("User-Agent").cloned(),
-            _ => None,
-        },
-        None => None,
-    }
-}
-
-fn request_handler(mut stream: TcpStream) {
-    let req = Request::builder(&stream).unwrap();
-    match req.target.as_str() {
-        "/" => {
-            let response = Response::builder(
-                Status {
-                    code: StatusCode::Ok,
-                    message: "OK".to_string(),
-                },
-                "".to_string(),
-                HashMap::new(),
-            );
-            response.send(&mut stream).unwrap();
-        }
-        "/echo" => {
-            let body = req.body.clone().unwrap();
-            let response = Response::builder(
-                Status {
-                    code: StatusCode::Ok,
-                    message: "OK".to_string(),
-                },
-                body,
-                req.headers,
-            );
-            response.send(&mut stream).unwrap();
-        }
-        "/user-agent" => {
-            let body = req.headers.get("User-Agent").cloned().unwrap_or_else(|| "No User-Agent found".to_string());
-            let response = Response::builder(
-                Status {
-                    code: StatusCode::Ok,
-                    message: "OK".to_string(),
-                },
-                body,
-                req.headers,
-            );
-            response.send(&mut stream).unwrap();
-        }
-        _ => {
-            let response = Response::builder(
-                Status {
-                    code: StatusCode::NotFound,
-                    message: "Not Found".to_string(),
-                },
-                "".to_string(),
-                HashMap::new(),
-            );
-            response.send(&mut stream).unwrap();
-        }
-    }
 }
 
 fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    println!("Logs from your program will appear here!");
-    // Uncomment this block to pass the first stage
+    let mut router = Router::new();
+    let router_arc = Arc::new(RwLock::new(router));
+
+    {
+        let router_arc_clone = Arc::clone(&router_arc);
+        router_arc.write().unwrap().add_route("/", |req| root_handler(req));
+    }
+    
+    {
+        let router_arc_clone = Arc::clone(&router_arc);
+        router_arc.write().unwrap().add_route("/echo", move |req| echo_handler(router_arc_clone.clone(), req));
+    }
+
+    {
+        let router_arc_clone = Arc::clone(&router_arc);
+        router_arc.write().unwrap().add_route("/user-agent", move |req| user_agent_handler(router_arc_clone.clone(), req));
+    }
+
+    let server = Arc::new(HttpServer::new(router_arc.clone())); // Wrap HttpServer in Arc
+
+    // Start the server
     let listener = TcpListener::bind("127.0.0.1:4221").unwrap();
+    println!("Listening on http://127.0.0.1:4221");
+
     for stream in listener.incoming() {
         match stream {
-            Ok(_stream) => {
-                std::thread::spawn(||request_handler(_stream));
+            Ok(stream) => {
+                let server = Arc::clone(&server); // Clone the Arc reference
+                std::thread::spawn(move || {
+                    server.handle_client(stream); // Use the cloned server
+                });
             }
             Err(e) => {
-                println!("error: {}", e);
+                eprintln!("Error: {}", e);
             }
         }
     }
