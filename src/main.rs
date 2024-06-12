@@ -3,6 +3,7 @@ use std::{
     collections::HashMap,
     io::Write,
     net::{TcpListener, TcpStream},
+    path::Path,
     sync::{Arc, RwLock},
 };
 
@@ -21,10 +22,8 @@ mod server;
 fn root_handler(req: Request) -> Result<Response, Response> {
     let body = "";
     let mut headers = HashMap::new();
-    if !body.is_empty() {
-        headers.insert("Content-Type".to_string(), "text/plain".to_string());
-        headers.insert("Content-Length".to_string(), body.len().to_string());
-    }
+    headers.insert("Content-Type".to_string(), "text/plain".to_string());
+    headers.insert("Content-Length".to_string(), body.len().to_string());
     Ok(Response::builder(
         Status {
             code: StatusCode::Ok,
@@ -62,10 +61,8 @@ fn user_agent_handler(req: Request) -> Result<Response, Response> {
         .cloned()
         .unwrap_or_else(|| "No User-Agent found".to_string());
     let mut headers = HashMap::new();
-    if !body.is_empty() {
-        headers.insert("Content-Type".to_string(), "text/plain".to_string());
-        headers.insert("Content-Length".to_string(), body.len().to_string());
-    }
+    headers.insert("Content-Type".to_string(), "text/plain".to_string());
+    headers.insert("Content-Length".to_string(), body.len().to_string());
     Ok(Response::builder(
         Status {
             code: StatusCode::Ok,
@@ -117,6 +114,47 @@ fn files_handler(req: Request) -> Result<Response, Response> {
     }
 }
 
+fn files_handler_create(req: Request) -> Result<Response, Response> {
+    let file_name = req
+        .target
+        .strip_prefix("/files")
+        .and_then(|stripped| stripped.strip_prefix('/'))
+        .map(|stripped| stripped.to_string())
+        .unwrap_or_default();
+    let file = format!(
+        "{}/{}",
+        env::args().nth(2).expect("Argument missing"),
+        file_name
+    );
+    let file_path = Path::new(&file);
+
+    // Write the request body to the file
+    if let Some(body) = &req.body {
+        if let Err(_) = std::fs::write(file_path, body) {
+            return Ok(Response::builder(
+                Status {
+                    code: StatusCode::InternalServerError,
+                    message: "Internal Server Error".to_string(),
+                },
+                "500 Internal Server Error".to_string(),
+                HashMap::new(),
+            ));
+        }
+    }
+
+    let mut headers = HashMap::new();
+    headers.insert("Content-Type".to_string(), "text/plain".to_string());
+    headers.insert("Content-Length".to_string(), "0".to_string());
+    Ok(Response::builder(
+        Status {
+            code: StatusCode::Created,
+            message: "Created".to_string(),
+        },
+        "".to_string(),
+        headers,
+    ))
+}
+
 fn main() {
     let mut router = Router::new();
     let router_arc = Arc::new(RwLock::new(router));
@@ -126,7 +164,7 @@ fn main() {
         router_arc
             .write()
             .unwrap()
-            .add_route("/", |req| root_handler(req));
+            .add_route(RequestMethod::GET, "/", |req| root_handler(req));
     }
 
     {
@@ -134,7 +172,7 @@ fn main() {
         router_arc
             .write()
             .unwrap()
-            .add_route("/echo", |req| echo_handler(req));
+            .add_route(RequestMethod::GET, "/echo", |req| echo_handler(req));
     }
 
     {
@@ -142,7 +180,9 @@ fn main() {
         router_arc
             .write()
             .unwrap()
-            .add_route("/user-agent", |req| user_agent_handler(req));
+            .add_route(RequestMethod::GET, "/user-agent", |req| {
+                user_agent_handler(req)
+            });
     }
 
     {
@@ -150,7 +190,17 @@ fn main() {
         router_arc
             .write()
             .unwrap()
-            .add_route("/files", |req| files_handler(req));
+            .add_route(RequestMethod::GET, "/files", |req| files_handler(req));
+    }
+
+    {
+        let router_arc_clone = Arc::clone(&router_arc);
+        router_arc
+            .write()
+            .unwrap()
+            .add_route(RequestMethod::POST, "/files", |req| {
+                files_handler_create(req)
+            });
     }
 
     let server = Arc::new(HttpServer::new(router_arc.clone())); // Wrap HttpServer in Arc

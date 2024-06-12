@@ -1,15 +1,14 @@
-use crate::request::Request;
+use crate::request::{Request, RequestMethod};
 use crate::response::{Response, Status, StatusCode};
 use crate::server::RequestHandler;
-use std::{
-    collections::HashMap,
-    io::Write,
-    net::{TcpListener, TcpStream},
-    sync::{Arc, RwLock},
-};
+use std::collections::HashMap;
+use std::sync::Arc;
 
 pub struct Router {
-    routes: HashMap<String, RequestHandler>,
+    routes: HashMap<
+        (RequestMethod, String),
+        Arc<dyn Fn(Request) -> Result<Response, Response> + Send + Sync>,
+    >,
 }
 
 impl Router {
@@ -19,15 +18,17 @@ impl Router {
         }
     }
 
-    pub fn add_route<F>(&mut self, path: &str, handler: F)
+    pub fn add_route<F>(&mut self, method: RequestMethod, path: &str, handler: F)
     where
         F: Fn(Request) -> Result<Response, Response> + Send + Sync + 'static,
     {
-        self.routes.insert(path.to_string(), Arc::new(handler));
+        self.routes
+            .insert((method, path.to_string()), Arc::new(Box::new(handler)));
     }
 
     pub fn route(&self, req: Request) -> Result<Response, Response> {
-        if let Some(handler) = self.contains_prefix(req.target.as_str()) {
+        let (method, key) = (req.method.clone(), req.target.clone());
+        if let Some(handler) = self.contains_prefix(&method, &key) {
             handler(req)
         } else {
             Err(Response::builder(
@@ -42,14 +43,14 @@ impl Router {
     }
 
     pub fn get_prefixes(&self) -> Vec<String> {
-        self.routes.keys().cloned().collect()
+        self.routes.keys().map(|(_, path)| path.clone()).collect()
     }
 
-    pub fn contains_prefix(&self, prefix: &str) -> Option<&RequestHandler> {
-        self.routes.iter().find_map(|(key, handler)| {
-            if key == "/" && prefix == "/" {
+    pub fn contains_prefix(&self, method: &RequestMethod, prefix: &str) -> Option<&RequestHandler> {
+        self.routes.iter().find_map(|((_method, key), handler)| {
+            if key == "/" && prefix == "/" && method == _method {
                 Some(handler)
-            } else if prefix.starts_with(key) && key != "/" {
+            } else if prefix.starts_with(key) && key != "/" && method == _method {
                 Some(handler)
             } else {
                 None

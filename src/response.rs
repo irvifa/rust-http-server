@@ -5,6 +5,9 @@ use std::net::TcpStream;
 pub enum StatusCode {
     Ok = 200,
     NotFound = 404,
+    Created = 201,
+    InternalServerError = 500,
+    BadRequest = 400,
 }
 
 impl StatusCode {
@@ -12,6 +15,9 @@ impl StatusCode {
         match self {
             StatusCode::Ok => 200,
             StatusCode::NotFound => 404,
+            StatusCode::Created => 201,
+            StatusCode::InternalServerError => 500,
+            StatusCode::BadRequest => 400,
         }
     }
 }
