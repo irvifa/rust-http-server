@@ -17,7 +17,16 @@ mod router;
 use server::{HttpServer, RequestHandler};
 mod server;
 
-fn root_handler(_req: Request) -> Result<Response, Response> {
+fn parse_echo_body(request: &Request) -> Option<String> {
+    request.target.strip_prefix("/echo").and_then(|stripped| stripped.strip_prefix('/')).map(|stripped| stripped.to_string())
+}
+
+fn parse_user_agent_body(request: &Request) -> Option<String> {
+    request.headers.get("User-Agent").cloned()
+}
+
+
+fn root_handler(req: Request) -> Result<Response, Response> {
     Ok(Response::builder(
         Status {
             code: StatusCode::Ok,
@@ -28,36 +37,29 @@ fn root_handler(_req: Request) -> Result<Response, Response> {
     ))
 }
 
-fn echo_handler(router: Arc<RwLock<Router>>, req: Request) -> Result<Response, Response> {
-    let mut req = req;
-    let router = router.read().unwrap();
-    req.body = router.parse_body(&req);
-    req.target = router.parse_target(req.target.to_string());
-    println!("{}", req.body.clone().unwrap());
+fn echo_handler(req: Request) -> Result<Response, Response> {
+    println!("{}", req.body.clone().unwrap_or_default());
     Ok(Response::builder(
         Status {
             code: StatusCode::Ok,
             message: "OK".to_string(),
         },
-        req.body.unwrap(),
+        req.body.unwrap_or_default(),
         req.headers,
     ))
 }
 
-fn user_agent_handler(router: Arc<RwLock<Router>>, req: Request) -> Result<Response, Response> {
-    let mut req = req;
-    let router = router.read().unwrap();
-    req.body = router.parse_body(&req);
-    req.target = router.parse_target(req.target.to_string());
+fn user_agent_handler(req: Request) -> Result<Response, Response> {
     Ok(Response::builder(
         Status {
             code: StatusCode::Ok,
             message: "OK".to_string(),
         },
-        req.body.unwrap(),
+        req.body.unwrap_or_default(),
         req.headers,
     ))
 }
+
 
 fn main() {
     let mut router = Router::new();
@@ -65,17 +67,17 @@ fn main() {
 
     {
         let router_arc_clone = Arc::clone(&router_arc);
-        router_arc.write().unwrap().add_route("/", |req| root_handler(req));
-    }
-    
-    {
-        let router_arc_clone = Arc::clone(&router_arc);
-        router_arc.write().unwrap().add_route("/echo", move |req| echo_handler(router_arc_clone.clone(), req));
+        router_arc.write().unwrap().add_route("/", |req| root_handler(req), |_req| None);
     }
 
     {
         let router_arc_clone = Arc::clone(&router_arc);
-        router_arc.write().unwrap().add_route("/user-agent", move |req| user_agent_handler(router_arc_clone.clone(), req));
+        router_arc.write().unwrap().add_route("/echo", |req| echo_handler(req), parse_echo_body);
+    }
+
+    {
+        let router_arc_clone = Arc::clone(&router_arc);
+        router_arc.write().unwrap().add_route("/user-agent", |req| user_agent_handler(req), parse_user_agent_body);
     }
 
     let server = Arc::new(HttpServer::new(router_arc.clone())); // Wrap HttpServer in Arc
@@ -98,3 +100,4 @@ fn main() {
         }
     }
 }
+

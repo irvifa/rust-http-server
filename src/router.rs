@@ -8,8 +8,10 @@ use crate::request::Request;
 use crate::response::{Response, Status, StatusCode};
 use crate::server::RequestHandler;
 
+pub type BodyParser = fn(&Request) -> Option<String>;
+
 pub struct Router {
-    routes: HashMap<String, RequestHandler>,
+    routes: HashMap<String, (RequestHandler, BodyParser)>,
 }
 
 impl Router {
@@ -19,15 +21,17 @@ impl Router {
         }
     }
 
-    pub fn add_route<F>(&mut self, path: &str, handler: F)
+    pub fn add_route<F>(&mut self, path: &str, handler: F, parser: BodyParser)
     where
         F: Fn(Request) -> Result<Response, Response> + Send + Sync + 'static,
     {
-        self.routes.insert(path.to_string(), Arc::new(handler));
+        self.routes.insert(path.to_string(), (Arc::new(handler), parser));
     }
 
     pub fn route(&self, req: Request) -> Result<Response, Response> {
-        if let Some(handler) = self.routes.get(req.target.as_str()) {
+        if let Some((handler, parser)) = self.routes.get(req.target.as_str()) {
+            let mut req = req;
+            req.body = parser(&req);
             handler(req)
         } else {
             Err(Response::builder(
@@ -57,22 +61,6 @@ impl Router {
         match Self::find_prefix(&path, &prefixes) {
             Some(prefix) => prefix.to_string(),
             None => path,
-        }
-    }
-
-    pub fn parse_body(&self, request: &Request) -> Option<String> {
-        let prefixes = self.get_prefixes();
-        let path = self.parse_target(request.target.to_string());
-        match Self::find_prefix(&path, &prefixes) {
-            Some(prefix) => match prefix {
-                "/echo" => {
-                    let body = request.target.strip_prefix(prefix).and_then(|stripped| stripped.strip_prefix('/')).map(|stripped| stripped.to_string());
-                    body.clone()
-                },
-                "/user-agent" => request.headers.get("User-Agent").cloned(),
-                _ => None,
-            },
-            None => None,
         }
     }
 }
