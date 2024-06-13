@@ -1,5 +1,6 @@
 use crate::encoding::{ContentEncoding, Encoding};
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::io::Write;
 use std::net::TcpStream;
 
@@ -33,20 +34,23 @@ pub struct Response {
     pub status: Status,
     pub headers: HashMap<String, String>,
     pub body: Vec<u8>,
-    pub content_encoding: ContentEncoding,
+    pub content_encodings: HashSet<ContentEncoding>,
 }
 
 impl Response {
     pub fn builder(status: Status, body: String, headers: HashMap<String, String>) -> Response {
+        let mut content_encodings = HashSet::new();
+
+        if let Some(accept_encoding) = headers.get("Accept-Encoding") {
+            for encoding in accept_encoding.split(',').map(|s| s.trim()) {
+                content_encodings.insert(ContentEncoding::from_string(encoding));
+            }
+        }
+
         Response {
             status,
-            headers: headers.clone(),
-            content_encoding: <ContentEncoding as Encoding>::from_string(
-                headers
-                    .get("Accept-Encoding")
-                    .map(|s| s.as_str())
-                    .unwrap_or(""),
-            ),
+            headers,
+            content_encodings,
             version: "HTTP/1.1".to_string(),
             body: body.into_bytes(),
         }
@@ -54,6 +58,7 @@ impl Response {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buffer: Vec<u8> = Vec::new();
+        println!("{}", self.version);
         write!(
             &mut buffer,
             "{} {} {}\r\n",
@@ -68,15 +73,20 @@ impl Response {
             write!(&mut buffer, "{}: {}\r\n", key, value).unwrap();
         }
 
-        let encoding = <ContentEncoding as Encoding>::to_string(&self.content_encoding);
-        if encoding != None {
-            write!(&mut buffer, "Content-Encoding: {}\r\n", encoding.unwrap()).unwrap();
+        // Write Content-Encoding header if any encoding is present
+        if !self.content_encodings.is_empty() {
+            let encoding_str = self
+                .content_encodings
+                .iter()
+                .filter_map(|e| ContentEncoding::to_string(e))
+                .collect::<Vec<String>>()
+                .join(", ");
+            write!(&mut buffer, "Content-Encoding: {}\r\n", encoding_str).unwrap();
         }
 
         // End headers section
         buffer.extend_from_slice(b"\r\n");
 
-        // Append the body
         buffer.extend_from_slice(&self.body);
 
         buffer
@@ -86,5 +96,14 @@ impl Response {
         stream.write_all(&self.to_bytes())?;
         stream.flush()?;
         Ok(())
+    }
+
+    pub fn print_encodings(&self) {
+        for encoding in &self.content_encodings {
+            println!(
+                "{}",
+                ContentEncoding::to_string(encoding).unwrap_or_else(|| "none".to_string())
+            );
+        }
     }
 }

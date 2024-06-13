@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::fmt;
-use std::hash::Hash;
 use std::io::Read;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
 use std::net::TcpStream;
@@ -22,8 +20,8 @@ impl RequestMethod {
     }
 }
 
-impl fmt::Display for RequestMethod {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for RequestMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             RequestMethod::GET => write!(f, "GET"),
             RequestMethod::POST => write!(f, "POST"),
@@ -41,8 +39,6 @@ pub struct Request {
 }
 
 impl Request {
-    // Add relevant methods for Request here
-
     pub fn builder(stream: &TcpStream) -> Result<Request, Error> {
         let mut buf_reader = BufReader::new(stream.try_clone().unwrap());
         let mut request_str = String::new();

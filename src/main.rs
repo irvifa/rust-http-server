@@ -1,27 +1,22 @@
-use std::env;
+mod encoding;
+mod request;
+mod response;
+mod router;
+mod server;
+
+use crate::encoding::{ContentEncoding, Encoding};
+use crate::request::{Request, RequestMethod};
+use crate::response::{Response, Status, StatusCode};
+use crate::router::Router;
+use crate::server::{HttpServer, RequestHandler};
 use std::{
     collections::HashMap,
+    env,
     io::Write,
     net::{TcpListener, TcpStream},
     path::Path,
     sync::{Arc, RwLock},
 };
-
-use request::{Request, RequestMethod};
-mod request;
-
-use response::{Response, Status, StatusCode};
-mod response;
-
-use router::Router;
-mod router;
-
-use server::{HttpServer, RequestHandler};
-mod server;
-
-use crate::encoding::{ContentEncoding, Encoding};
-
-mod encoding;
 
 fn root_handler(req: Request) -> Result<Response, Response> {
     let body = "";
@@ -49,6 +44,7 @@ fn echo_handler(req: Request) -> Result<Response, Response> {
     let mut headers = HashMap::new();
     headers.insert("Content-Type".to_string(), "text/plain".to_string());
     headers.insert("Content-Length".to_string(), body.len().to_string());
+    println!("{}", body);
     headers.extend(req.headers);
     Ok(Response::builder(
         Status {
