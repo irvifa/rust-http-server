@@ -47,7 +47,6 @@ impl Router {
     }
 
     pub fn contains_prefix(&self, method: &RequestMethod, prefix: &str) -> Option<&RequestHandler> {
-        println!("{}", prefix);
         self.routes.iter().find_map(|((_method, key), handler)| {
             if key == "/" && prefix == "/" && method == _method {
                 Some(handler)

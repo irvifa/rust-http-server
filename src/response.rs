@@ -1,6 +1,6 @@
 use crate::encoding::{ContentEncoding, Encoding};
-use std::collections::HashMap;
-use std::collections::HashSet;
+use hex::encode;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::net::TcpStream;
 
@@ -58,7 +58,6 @@ impl Response {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut buffer: Vec<u8> = Vec::new();
-        println!("{}", self.version);
         write!(
             &mut buffer,
             "{} {} {}\r\n",
@@ -68,42 +67,39 @@ impl Response {
         )
         .unwrap();
 
-        // Write each header
-        for (key, value) in &self.headers {
-            write!(&mut buffer, "{}: {}\r\n", key, value).unwrap();
+        let mut encoded_body = self.body.clone();
+        let mut headers = self.headers.clone();
+
+        // Encode the body if gzip is present in content encodings
+        if self.content_encodings.contains(&ContentEncoding::GZIP) {
+            encoded_body =
+                ContentEncoding::GZIP.encode(&String::from_utf8(self.body.clone()).unwrap());
+            // encoded_body = encode(&encoded_body).into();
+            // Update Content-Encoding header
+            headers.insert("Content-Encoding".to_string(), "gzip".to_string());
         }
 
-        // Write Content-Encoding header if any encoding is present
-        if !self.content_encodings.is_empty() {
-            let encoding_str = self
-                .content_encodings
-                .iter()
-                .filter_map(|e| ContentEncoding::to_string(e))
-                .collect::<Vec<String>>()
-                .join(", ");
-            write!(&mut buffer, "Content-Encoding: {}\r\n", encoding_str).unwrap();
+        // Update Content-Length header to reflect the encoded body length
+        headers.insert("Content-Length".to_string(), encoded_body.len().to_string());
+
+        // Write each header
+        for (key, value) in &headers {
+            write!(&mut buffer, "{}: {}\r\n", key, value).unwrap();
         }
 
         // End headers section
         buffer.extend_from_slice(b"\r\n");
 
-        buffer.extend_from_slice(&self.body);
+        // Append the encoded body
+        buffer.extend_from_slice(&encoded_body);
 
         buffer
     }
 
     pub fn send(&self, stream: &mut TcpStream) -> std::io::Result<()> {
-        stream.write_all(&self.to_bytes())?;
+        let response_bytes = self.to_bytes();
+        stream.write_all(&response_bytes)?;
         stream.flush()?;
         Ok(())
-    }
-
-    pub fn print_encodings(&self) {
-        for encoding in &self.content_encodings {
-            println!(
-                "{}",
-                ContentEncoding::to_string(encoding).unwrap_or_else(|| "none".to_string())
-            );
-        }
     }
 }

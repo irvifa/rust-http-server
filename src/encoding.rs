@@ -3,11 +3,10 @@ extern crate flate2;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use std::collections::HashSet;
-use std::fmt;
+use hex::encode;
 use std::io::{Read, Write};
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 pub enum ContentEncoding {
     NONE,
     GZIP,
@@ -17,7 +16,7 @@ pub trait Encoding {
     fn from_string(encoding: &str) -> ContentEncoding;
     fn to_string(encoding: &ContentEncoding) -> Option<String>;
     fn encode(&self, input: &str) -> Vec<u8>;
-    fn decode(&self, input: &[u8]) -> Vec<u8>;
+    fn decode(&self, input: &[u8]) -> String;
 }
 
 impl Encoding for ContentEncoding {
@@ -47,13 +46,13 @@ impl Encoding for ContentEncoding {
         }
     }
 
-    fn decode(&self, input: &[u8]) -> Vec<u8> {
+    fn decode(&self, input: &[u8]) -> String {
         match self {
-            ContentEncoding::NONE => input.to_vec(),
+            ContentEncoding::NONE => String::from_utf8(input.to_vec()).unwrap(),
             ContentEncoding::GZIP => {
                 let mut decoder = GzDecoder::new(input);
-                let mut decoded = Vec::new();
-                decoder.read_to_end(&mut decoded).unwrap();
+                let mut decoded = String::new();
+                decoder.read_to_string(&mut decoded).unwrap();
                 decoded
             }
         }

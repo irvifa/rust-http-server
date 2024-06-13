@@ -44,7 +44,6 @@ fn echo_handler(req: Request) -> Result<Response, Response> {
     let mut headers = HashMap::new();
     headers.insert("Content-Type".to_string(), "text/plain".to_string());
     headers.insert("Content-Length".to_string(), body.len().to_string());
-    println!("{}", body);
     headers.extend(req.headers);
     Ok(Response::builder(
         Status {
