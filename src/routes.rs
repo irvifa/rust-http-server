@@ -138,7 +138,6 @@ pub fn files_handler_create(req: Request) -> Result<Response, Response> {
 
     let mut headers = HashMap::new();
     headers.insert(Header::ContentType, ContentType::TextPlain.to_string());
-    headers.insert(Header::ContentLength, "0".to_string());
     Ok(Response::builder(
         Status {
             code: StatusCode::Created,
