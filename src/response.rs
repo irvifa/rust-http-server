@@ -1,8 +1,9 @@
 use crate::encoding::{ContentEncoding, Encoding};
+use hex::encode;
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::io::Write;
 use std::net::TcpStream;
-use hex::encode;
 
 pub enum StatusCode {
     Ok = 200,
@@ -22,11 +23,40 @@ impl StatusCode {
             StatusCode::BadRequest => 400,
         }
     }
+
+    fn to_reason_phrase(&self) -> &'static str {
+        match self {
+            StatusCode::Ok => "OK",
+            StatusCode::NotFound => "Not Found",
+            StatusCode::Created => "Created",
+            StatusCode::InternalServerError => "Internal Server Error",
+            StatusCode::BadRequest => "Bad Request",
+        }
+    }
+
+    fn to_string(&self) -> String {
+        format!("{} {}", self.to_u16(), self.to_reason_phrase())
+    }
+}
+
+impl fmt::Display for StatusCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
 }
 
 pub struct Status {
     pub code: StatusCode,
     pub message: String,
+}
+
+impl Status {
+    pub fn new(code: StatusCode) -> Self {
+        Status {
+            message: code.to_reason_phrase().to_string(),
+            code,
+        }
+    }
 }
 
 pub struct Response {
@@ -72,8 +102,10 @@ impl Response {
 
         // Encode the body if gzip is present in content encodings
         if self.content_encodings.contains(&ContentEncoding::GZIP) {
-            encoded_body = ContentEncoding::GZIP.encode(&String::from_utf8(self.body.clone()).unwrap());
-            // encoded_body = encode(&encoded_body).into();
+            println!("Encoding body with GZIP");
+            encoded_body =
+                ContentEncoding::GZIP.encode(&String::from_utf8(self.body.clone()).unwrap());
+
             // Update Content-Encoding header
             headers.insert("Content-Encoding".to_string(), "gzip".to_string());
         }
@@ -82,7 +114,9 @@ impl Response {
         headers.insert("Content-Length".to_string(), encoded_body.len().to_string());
 
         // Write each header
+        println!("Headers:");
         for (key, value) in &headers {
+            println!("{}: {}", key, value);
             write!(&mut buffer, "{}: {}\r\n", key, value).unwrap();
         }
 
@@ -92,11 +126,19 @@ impl Response {
         // Append the encoded body
         buffer.extend_from_slice(&encoded_body);
 
+        println!(
+            "Body before encoding: {:?}",
+            String::from_utf8_lossy(&self.body)
+        );
+        println!("Body after encoding: {:?}", encode(&encoded_body));
+        println!("Response bytes: {:?}", encode(&buffer));
+
         buffer
     }
 
     pub fn send(&self, stream: &mut TcpStream) -> std::io::Result<()> {
         let response_bytes = self.to_bytes();
+        println!("Response: {:?}", String::from_utf8_lossy(&response_bytes));
         stream.write_all(&response_bytes)?;
         stream.flush()?;
         Ok(())

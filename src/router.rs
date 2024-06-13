@@ -32,10 +32,7 @@ impl Router {
             handler(req)
         } else {
             Err(Response::builder(
-                Status {
-                    code: StatusCode::NotFound,
-                    message: "Not Found".to_string(),
-                },
+                Status::new(StatusCode::NotFound),
                 "404 Not Found".to_string(),
                 HashMap::new(),
             ))

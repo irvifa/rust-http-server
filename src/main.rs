@@ -25,10 +25,7 @@ fn root_handler(req: Request) -> Result<Response, Response> {
     headers.insert("Content-Length".to_string(), body.len().to_string());
     headers.extend(req.headers);
     Ok(Response::builder(
-        Status {
-            code: StatusCode::Ok,
-            message: "OK".to_string(),
-        },
+        Status::new(StatusCode::Ok),
         body.to_string(),
         headers,
     ))
@@ -46,10 +43,7 @@ fn echo_handler(req: Request) -> Result<Response, Response> {
     headers.insert("Content-Length".to_string(), body.len().to_string());
     headers.extend(req.headers);
     Ok(Response::builder(
-        Status {
-            code: StatusCode::Ok,
-            message: "OK".to_string(),
-        },
+        Status::new(StatusCode::Ok),
         body,
         headers,
     ))
@@ -66,10 +60,7 @@ fn user_agent_handler(req: Request) -> Result<Response, Response> {
     headers.insert("Content-Length".to_string(), body.len().to_string());
     headers.extend(req.headers);
     Ok(Response::builder(
-        Status {
-            code: StatusCode::Ok,
-            message: "OK".to_string(),
-        },
+        Status::new(StatusCode::Ok),
         body,
         headers,
     ))
@@ -97,19 +88,13 @@ fn files_handler(req: Request) -> Result<Response, Response> {
                 "application/octet-stream".to_string(),
             );
             Ok(Response::builder(
-                Status {
-                    code: StatusCode::Ok,
-                    message: "OK".to_string(),
-                },
+                Status::new(StatusCode::Ok),
                 body,
                 headers,
             ))
         }
         Err(_) => Ok(Response::builder(
-            Status {
-                code: StatusCode::NotFound,
-                message: "Not Found".to_string(),
-            },
+            Status::new(StatusCode::NotFound),
             "404 Not Found".to_string(),
             HashMap::new(),
         )),
@@ -134,10 +119,7 @@ fn files_handler_create(req: Request) -> Result<Response, Response> {
     if let Some(body) = &req.body {
         if let Err(_) = std::fs::write(file_path, body) {
             return Ok(Response::builder(
-                Status {
-                    code: StatusCode::InternalServerError,
-                    message: "Internal Server Error".to_string(),
-                },
+                Status::new(StatusCode::InternalServerError),
                 "500 Internal Server Error".to_string(),
                 HashMap::new(),
             ));
@@ -148,10 +130,7 @@ fn files_handler_create(req: Request) -> Result<Response, Response> {
     headers.insert("Content-Type".to_string(), "text/plain".to_string());
     headers.insert("Content-Length".to_string(), "0".to_string());
     Ok(Response::builder(
-        Status {
-            code: StatusCode::Created,
-            message: "Created".to_string(),
-        },
+        Status::new(StatusCode::Created),
         "".to_string(),
         headers,
     ))
