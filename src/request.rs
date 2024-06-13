@@ -1,16 +1,15 @@
-use crate::http::{RequestMethod, StatusCode};
+use crate::http::{Header, RequestMethod};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
 use std::net::TcpStream;
-use std::io::{Read, Write};
-
+use std::io::Read;
 
 pub struct Request {
     pub method: RequestMethod,
     pub target: String,
     pub version: String,
     pub body: Option<String>,
-    pub headers: HashMap<String, String>,
+    pub headers: HashMap<Header, String>,
 }
 
 impl Request {
@@ -29,7 +28,7 @@ impl Request {
                 break;
             }
             if let Some((key, value)) = trimmed_line.split_once(':') {
-                headers.insert(key.trim().to_string(), value.trim().to_string());
+                headers.insert(Header::from_string(key.trim()), value.trim().to_string());
             }
             line.clear();
         }
@@ -50,7 +49,7 @@ impl Request {
 
             // Check for Content-Length header to read the body
             let mut body = String::new();
-            if let Some(content_length) = headers.get("Content-Length") {
+            if let Some(content_length) = headers.get(&Header::ContentLength) {
                 let content_length: usize = content_length.parse().unwrap_or(0);
                 if content_length > 0 {
                     let mut buffer = vec![0; content_length];

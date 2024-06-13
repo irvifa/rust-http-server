@@ -9,8 +9,8 @@ use crate::encoding::{ContentEncoding, Encoding};
 use crate::request::{Request};
 use crate::response::{Response};
 use crate::router::Router;
-use crate::server::{HttpServer, RequestHandler};
-use crate::http::{Status, StatusCode, RequestMethod};
+use crate::server::{HttpServer};
+use crate::http::{ContentType, Header, Status, StatusCode, RequestMethod};
 use std::{
     collections::HashMap,
     env,
@@ -23,11 +23,14 @@ use std::{
 fn root_handler(req: Request) -> Result<Response, Response> {
     let body = "";
     let mut headers = HashMap::new();
-    headers.insert("Content-Type".to_string(), "text/plain".to_string());
-    headers.insert("Content-Length".to_string(), body.len().to_string());
+    headers.insert(Header::ContentType, ContentType::TextPlain.to_string());
+    headers.insert(Header::ContentLength, body.len().to_string());
     headers.extend(req.headers);
     Ok(Response::builder(
-        Status::new(StatusCode::Ok),
+        Status {
+            code: StatusCode::Ok,
+            message: "OK".to_string(),
+        },
         body.to_string(),
         headers,
     ))
@@ -41,11 +44,14 @@ fn echo_handler(req: Request) -> Result<Response, Response> {
         .map(|stripped| stripped.to_string())
         .unwrap_or_default();
     let mut headers = HashMap::new();
-    headers.insert("Content-Type".to_string(), "text/plain".to_string());
-    headers.insert("Content-Length".to_string(), body.len().to_string());
+    headers.insert(Header::ContentType, ContentType::TextPlain.to_string());
+    headers.insert(Header::ContentLength, body.len().to_string());
     headers.extend(req.headers);
     Ok(Response::builder(
-        Status::new(StatusCode::Ok),
+        Status {
+            code: StatusCode::Ok,
+            message: "OK".to_string(),
+        },
         body,
         headers,
     ))
@@ -54,15 +60,18 @@ fn echo_handler(req: Request) -> Result<Response, Response> {
 fn user_agent_handler(req: Request) -> Result<Response, Response> {
     let body = req
         .headers
-        .get("User-Agent")
+        .get(&Header::UserAgent)
         .cloned()
         .unwrap_or_else(|| "No User-Agent found".to_string());
     let mut headers = HashMap::new();
-    headers.insert("Content-Type".to_string(), "text/plain".to_string());
-    headers.insert("Content-Length".to_string(), body.len().to_string());
+    headers.insert(Header::ContentType, ContentType::TextPlain.to_string());
+    headers.insert(Header::ContentLength, body.len().to_string());
     headers.extend(req.headers);
     Ok(Response::builder(
-        Status::new(StatusCode::Ok),
+        Status {
+            code: StatusCode::Ok,
+            message: "OK".to_string(),
+        },
         body,
         headers,
     ))
@@ -84,19 +93,25 @@ fn files_handler(req: Request) -> Result<Response, Response> {
     let mut headers = HashMap::new();
     match body {
         Ok(body) => {
-            headers.insert("Content-Length".to_string(), body.len().to_string());
+            headers.insert(Header::ContentLength, body.len().to_string());
             headers.insert(
-                "Content-Type".to_string(),
-                "application/octet-stream".to_string(),
+                Header::ContentType,
+                ContentType::ApplicationOctetStream.to_string(),
             );
             Ok(Response::builder(
-                Status::new(StatusCode::Ok),
+                Status {
+                    code: StatusCode::Ok,
+                    message: "OK".to_string(),
+                },
                 body,
                 headers,
             ))
         }
         Err(_) => Ok(Response::builder(
-            Status::new(StatusCode::NotFound),
+            Status {
+                code: StatusCode::NotFound,
+                message: "Not Found".to_string(),
+            },
             "404 Not Found".to_string(),
             HashMap::new(),
         )),
@@ -121,7 +136,10 @@ fn files_handler_create(req: Request) -> Result<Response, Response> {
     if let Some(body) = &req.body {
         if let Err(_) = std::fs::write(file_path, body) {
             return Ok(Response::builder(
-                Status::new(StatusCode::InternalServerError),
+                Status {
+                    code: StatusCode::InternalServerError,
+                    message: "Internal Server Error".to_string(),
+                },
                 "500 Internal Server Error".to_string(),
                 HashMap::new(),
             ));
@@ -129,10 +147,13 @@ fn files_handler_create(req: Request) -> Result<Response, Response> {
     }
 
     let mut headers = HashMap::new();
-    headers.insert("Content-Type".to_string(), "text/plain".to_string());
-    headers.insert("Content-Length".to_string(), "0".to_string());
+    headers.insert(Header::ContentType, ContentType::TextPlain.to_string());
+    headers.insert(Header::ContentLength, "0".to_string());
     Ok(Response::builder(
-        Status::new(StatusCode::Created),
+        Status {
+            code: StatusCode::Created,
+            message: "Created".to_string(),
+        },
         "".to_string(),
         headers,
     ))

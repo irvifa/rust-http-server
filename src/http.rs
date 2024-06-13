@@ -87,3 +87,80 @@ impl Status {
         }
     }
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Header {
+    ContentLength,
+    ContentType,
+    AcceptEncoding,
+    ContentEncoding,
+    UserAgent,
+    Host,
+    Accept,
+    Custom(String),
+}
+
+impl Header {
+    pub fn from_string(header: &str) -> Self {
+        match header.to_lowercase().as_str() {
+            "content-length" => Header::ContentLength,
+            "content-type" => Header::ContentType,
+            "accept-encoding" => Header::AcceptEncoding,
+            "content-encoding" => Header::ContentEncoding,
+            "user-agent" => Header::UserAgent,
+            "host" => Header::Host,
+            "accept" => Header::Accept,
+            _ => Header::Custom(header.to_string()),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            Header::ContentLength => "Content-Length".to_string(),
+            Header::ContentType => "Content-Type".to_string(),
+            Header::AcceptEncoding => "Accept-Encoding".to_string(),
+            Header::ContentEncoding => "Content-Encoding".to_string(),
+            Header::UserAgent => "User-Agent".to_string(),
+            Header::Host => "Host".to_string(),
+            Header::Accept => "Accept".to_string(),
+            Header::Custom(value) => value.clone(),
+        }
+    }
+}
+
+impl fmt::Display for Header {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ContentType {
+    TextPlain,
+    ApplicationOctetStream,
+    Custom(String),
+}
+
+impl ContentType {
+    pub fn from_string(content_type: &str) -> Self {
+        match content_type.to_lowercase().as_str() {
+            "text/plain" => ContentType::TextPlain,
+            "application/octet-stream" => ContentType::ApplicationOctetStream,
+            _ => ContentType::Custom(content_type.to_string()),
+        }
+    }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            ContentType::TextPlain => "text/plain".to_string(),
+            ContentType::ApplicationOctetStream => "application/octet-stream".to_string(),
+            ContentType::Custom(value) => value.clone(),
+        }
+    }
+}
+
+impl fmt::Display for ContentType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}

@@ -1,23 +1,22 @@
 use crate::encoding::{ContentEncoding, Encoding};
-use crate::http::{Status, StatusCode};
+use crate::http::{ContentType, Header, Status, StatusCode};
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::net::TcpStream;
-use hex::encode;
 
 pub struct Response {
     pub version: String,
     pub status: Status,
-    pub headers: HashMap<String, String>,
+    pub headers: HashMap<Header, String>,
     pub body: Vec<u8>,
     pub content_encodings: HashSet<ContentEncoding>,
 }
 
 impl Response {
-    pub fn builder(status: Status, body: String, headers: HashMap<String, String>) -> Response {
+    pub fn builder(status: Status, body: String, headers: HashMap<Header, String>) -> Response {
         let mut content_encodings = HashSet::new();
 
-        if let Some(accept_encoding) = headers.get("Accept-Encoding") {
+        if let Some(accept_encoding) = headers.get(&Header::AcceptEncoding) {
             for encoding in accept_encoding.split(',').map(|s| s.trim()) {
                 content_encodings.insert(ContentEncoding::from_string(encoding));
             }
@@ -51,11 +50,11 @@ impl Response {
             encoded_body = ContentEncoding::GZIP.encode(&String::from_utf8(self.body.clone()).unwrap());
             // encoded_body = encode(&encoded_body).into();
             // Update Content-Encoding header
-            headers.insert("Content-Encoding".to_string(), "gzip".to_string());
+            headers.insert(Header::ContentEncoding, "gzip".to_string());
         }
 
         // Update Content-Length header to reflect the encoded body length
-        headers.insert("Content-Length".to_string(), encoded_body.len().to_string());
+        headers.insert(Header::ContentLength, encoded_body.len().to_string());
 
         // Write each header
         for (key, value) in &headers {
