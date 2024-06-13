@@ -1,10 +1,10 @@
+use crate::http::{Status, StatusCode};
 use crate::request::Request;
-use crate::response::{Response, Status, StatusCode};
+use crate::response::Response;
 use crate::router::Router;
 use std::collections::HashMap;
 use std::net::TcpStream;
-use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 pub type RequestHandler = Arc<dyn Fn(Request) -> Result<Response, Response> + Send + Sync>;
 
@@ -21,11 +21,8 @@ impl HttpServer {
         let req = match Request::builder(&stream) {
             Ok(req) => req,
             Err(_) => {
-                let mut response = Response::builder(
-                    Status {
-                        code: StatusCode::NotFound,
-                        message: "Bad Request".to_string(),
-                    },
+                let response = Response::builder(
+                    Status::new(StatusCode::NotFound),
                     "Bad Request".to_string(),
                     HashMap::new(),
                 );
@@ -34,7 +31,7 @@ impl HttpServer {
             }
         };
 
-        let mut response = match self.router.read().unwrap().route(req) {
+        let response = match self.router.read().unwrap().route(req) {
             Ok(response) => response,
             Err(response) => response,
         };

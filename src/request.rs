@@ -1,40 +1,9 @@
+use crate::http::{RequestMethod, StatusCode};
 use std::collections::HashMap;
-use std::fmt;
-use std::hash::Hash;
-use std::io::Read;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
 use std::net::TcpStream;
+use std::io::{Read, Write};
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum RequestMethod {
-    GET,
-    POST,
-    PUT,
-}
-
-impl RequestMethod {
-    pub fn from_string(method_as_str: &str) -> Result<Self, Error> {
-        match method_as_str {
-            "GET" => Ok(RequestMethod::GET),
-            "POST" => Ok(RequestMethod::POST),
-            "PUT" => Ok(RequestMethod::PUT),
-            _ => Err(Error::new(
-                ErrorKind::InvalidData,
-                format!("Invalid method: {}", method_as_str),
-            )),
-        }
-    }
-}
-
-impl fmt::Display for RequestMethod {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RequestMethod::GET => write!(f, "GET"),
-            RequestMethod::POST => write!(f, "POST"),
-            RequestMethod::PUT => write!(f, "PUT"),
-        }
-    }
-}
 
 pub struct Request {
     pub method: RequestMethod,

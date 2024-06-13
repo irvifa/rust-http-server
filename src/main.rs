@@ -3,12 +3,14 @@ mod request;
 mod response;
 mod router;
 mod server;
+mod http;
 
 use crate::encoding::{ContentEncoding, Encoding};
-use crate::request::{Request, RequestMethod};
-use crate::response::{Response, Status, StatusCode};
+use crate::request::{Request};
+use crate::response::{Response};
 use crate::router::Router;
 use crate::server::{HttpServer, RequestHandler};
+use crate::http::{Status, StatusCode, RequestMethod};
 use std::{
     collections::HashMap,
     env,

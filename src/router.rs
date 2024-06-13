@@ -1,5 +1,6 @@
-use crate::request::{Request, RequestMethod};
-use crate::response::{Response, Status, StatusCode};
+use crate::http::{RequestMethod, Status, StatusCode};
+use crate::request::Request;
+use crate::response::Response;
 use crate::server::RequestHandler;
 use std::collections::HashMap;
 use std::sync::Arc;
