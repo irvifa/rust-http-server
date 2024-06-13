@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::hash::Hash;
+use std::io::Read;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
 use std::net::TcpStream;
-use std::io::Read;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RequestMethod {
@@ -67,7 +67,12 @@ impl Request {
         if parts.len() == 3 {
             let [method, target, version] = match parts.as_slice() {
                 [method, target, version] => [method, target, version],
-                _ => return Err(Error::new(ErrorKind::InvalidData, "Invalid request.".to_string())),
+                _ => {
+                    return Err(Error::new(
+                        ErrorKind::InvalidData,
+                        "Invalid request.".to_string(),
+                    ))
+                }
             };
 
             let method = Self::method_from_string(method)?;

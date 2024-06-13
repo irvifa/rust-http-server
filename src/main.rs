@@ -19,11 +19,16 @@ mod router;
 use server::{HttpServer, RequestHandler};
 mod server;
 
+use crate::encoding::{ContentEncoding, Encoding};
+
+mod encoding;
+
 fn root_handler(req: Request) -> Result<Response, Response> {
     let body = "";
     let mut headers = HashMap::new();
     headers.insert("Content-Type".to_string(), "text/plain".to_string());
     headers.insert("Content-Length".to_string(), body.len().to_string());
+    headers.extend(req.headers);
     Ok(Response::builder(
         Status {
             code: StatusCode::Ok,
@@ -44,6 +49,7 @@ fn echo_handler(req: Request) -> Result<Response, Response> {
     let mut headers = HashMap::new();
     headers.insert("Content-Type".to_string(), "text/plain".to_string());
     headers.insert("Content-Length".to_string(), body.len().to_string());
+    headers.extend(req.headers);
     Ok(Response::builder(
         Status {
             code: StatusCode::Ok,
@@ -63,6 +69,7 @@ fn user_agent_handler(req: Request) -> Result<Response, Response> {
     let mut headers = HashMap::new();
     headers.insert("Content-Type".to_string(), "text/plain".to_string());
     headers.insert("Content-Length".to_string(), body.len().to_string());
+    headers.extend(req.headers);
     Ok(Response::builder(
         Status {
             code: StatusCode::Ok,

@@ -1,3 +1,4 @@
+use crate::encoding::{ContentEncoding, Encoding};
 use std::collections::HashMap;
 use std::io::Write;
 use std::net::TcpStream;
@@ -32,13 +33,20 @@ pub struct Response {
     pub status: Status,
     pub headers: HashMap<String, String>,
     pub body: Vec<u8>,
+    pub content_encoding: ContentEncoding,
 }
 
 impl Response {
     pub fn builder(status: Status, body: String, headers: HashMap<String, String>) -> Response {
         Response {
             status,
-            headers: headers,
+            headers: headers.clone(),
+            content_encoding: <ContentEncoding as Encoding>::from_string(
+                headers
+                    .get("Accept-Encoding")
+                    .map(|s| s.as_str())
+                    .unwrap_or(""),
+            ),
             version: "HTTP/1.1".to_string(),
             body: body.into_bytes(),
         }
@@ -58,6 +66,11 @@ impl Response {
         // Write each header
         for (key, value) in &self.headers {
             write!(&mut buffer, "{}: {}\r\n", key, value).unwrap();
+        }
+
+        let encoding = <ContentEncoding as Encoding>::to_string(&self.content_encoding);
+        if encoding != None {
+            write!(&mut buffer, "Content-Encoding: {}\r\n", encoding.unwrap()).unwrap();
         }
 
         // End headers section
