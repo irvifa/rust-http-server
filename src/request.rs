@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::hash::Hash;
 use std::io::Read;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
 use std::net::TcpStream;
@@ -11,17 +13,21 @@ pub enum RequestMethod {
 }
 
 impl RequestMethod {
-    pub fn from_string(method: &str) -> Option<Self> {
-        match method {
-            "GET" => Some(RequestMethod::GET),
-            "POST" => Some(RequestMethod::POST),
-            _ => None,
+    pub fn from_string(method_as_str: &str) -> Result<Self, Error> {
+        match method_as_str {
+            "GET" => Ok(RequestMethod::GET),
+            "POST" => Ok(RequestMethod::POST),
+            "PUT" => Ok(RequestMethod::PUT),
+            _ => Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("Invalid method: {}", method_as_str),
+            )),
         }
     }
 }
 
-impl std::fmt::Display for RequestMethod {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for RequestMethod {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RequestMethod::GET => write!(f, "GET"),
             RequestMethod::POST => write!(f, "POST"),
@@ -71,7 +77,7 @@ impl Request {
                 }
             };
 
-            let method = Self::method_from_string(method)?;
+            let method = RequestMethod::from_string(method)?;
 
             // Check for Content-Length header to read the body
             let mut body = String::new();
@@ -98,18 +104,6 @@ impl Request {
                 ErrorKind::InvalidData,
                 "Invalid request.".to_string(),
             ))
-        }
-    }
-
-    pub fn method_from_string(method_as_str: &str) -> Result<RequestMethod, Error> {
-        match method_as_str {
-            "GET" => Ok(RequestMethod::GET),
-            "POST" => Ok(RequestMethod::POST),
-            "PUT" => Ok(RequestMethod::PUT),
-            _ => Err(Error::new(
-                ErrorKind::InvalidData,
-                format!("Invalid method: {}", method_as_str),
-            )),
         }
     }
 }

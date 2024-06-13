@@ -1,8 +1,8 @@
 use crate::encoding::{ContentEncoding, Encoding};
-use hex::encode;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::net::TcpStream;
+use hex::encode;
 
 pub enum StatusCode {
     Ok = 200,
@@ -72,8 +72,7 @@ impl Response {
 
         // Encode the body if gzip is present in content encodings
         if self.content_encodings.contains(&ContentEncoding::GZIP) {
-            encoded_body =
-                ContentEncoding::GZIP.encode(&String::from_utf8(self.body.clone()).unwrap());
+            encoded_body = ContentEncoding::GZIP.encode(&String::from_utf8(self.body.clone()).unwrap());
             // encoded_body = encode(&encoded_body).into();
             // Update Content-Encoding header
             headers.insert("Content-Encoding".to_string(), "gzip".to_string());
